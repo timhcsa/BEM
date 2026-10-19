@@ -75,7 +75,7 @@ function Shell({ onSignOut, email }: { onSignOut?: () => void; email?: string })
         <div className="sidebar-foot">
           {MODE === 'local'
             ? <span className="mode local" title="Data is stored in this browser only. Use Settings > Data & backup to download a copy.">Local test database</span>
-            : <span className="mode live">Live · {email}</span>}
+            : <span className="mode live">Beta · {email}</span>}
           {s?.closed_through && <span className="muted small">Books closed through {s.closed_through}</span>}
           {onSignOut && <button className="linklike small" onClick={onSignOut}>Sign out</button>}
         </div>

@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { rpc } from '../lib/api';
 import { go, useApp, useRpc } from '../lib/store';
-import { date, money, monthLabel, periods, resizeImage, type Period } from '../lib/format';
+import { date, money, monthLabel, periods, resizeImage, today, type Period } from '../lib/format';
 import { PayeeForm } from './Payees';
 import { Avatar, Badge, Bars, Card, Empty, ErrorBox, Field, Loading, Modal, Money, PageHeader, PeriodPicker } from '../components/ui';
 
@@ -196,7 +196,7 @@ export function FundAccount({ missionaryId, fundId }: { missionaryId?: string; f
                   bal += Number(r.amount);
                   return (
                     <tr key={r.entry_id} className={r.kind === 'void' ? 'void-row' : ''}>
-                      <td className="nowrap">{date(r.entry_date)}</td>
+                      <td className="nowrap">{date(r.entry_date)}{r.entry_date > today() && <div><Badge tone="info">scheduled</Badge></div>}</td>
                       <td><span className={`kind ${r.kind}`}>{KIND_LABEL[r.kind] ?? r.kind}</span></td>
                       <td>{r.description}{r.detail && <div className="muted small">{r.detail}</div>}</td>
                       <td className="num">{Number(r.amount) > 0 ? money(r.amount) : ''}</td>

@@ -97,3 +97,27 @@ export async function buildDataExportSql(): Promise<string> {
   parts.push('commit;');
   return parts.join('\n\n') + '\n';
 }
+
+// ---------------------------------------------------------------------
+// User management (live site only). Calls the "admin-users" Edge Function,
+// which checks that the caller is an administrator.
+// ---------------------------------------------------------------------
+export async function adminUsers<T = any>(action: string, body: Record<string, unknown> = {}): Promise<T> {
+  if (MODE !== 'supabase') throw new ApiError('User management is available on the live site.');
+  const { data, error } = await supabase!.functions.invoke('admin-users', { body: { action, ...body } });
+  if (error) {
+    // the function returns {error: "..."} with a non-200 status; surface that message
+    let msg = error.message;
+    try { const j = await (error as any).context?.json?.(); if (j?.error) msg = j.error; } catch { /* ignore */ }
+    if (/Failed to send a request|not found|404/i.test(msg)) msg = 'The user-management service is not set up yet (deploy the admin-users Edge Function in Supabase).';
+    throw new ApiError(msg);
+  }
+  if (data?.error) throw new ApiError(data.error);
+  return data as T;
+}
+
+export async function changeMyPassword(password: string) {
+  if (MODE !== 'supabase') throw new ApiError('Passwords are only used on the live site.');
+  const { error } = await supabase!.auth.updateUser({ password });
+  if (error) throw new ApiError(error.message);
+}

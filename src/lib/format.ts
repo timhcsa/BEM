@@ -50,10 +50,12 @@ export function periods(): Record<string, Period> {
   const first = (yy: number, mm: number) => toISO(new Date(yy, mm, 1));
   const last = (yy: number, mm: number) => toISO(new Date(yy, mm + 1, 0));
   return {
-    this_month: { from: first(y, m), to: today(), label: 'This month' },
+    // Periods run to the end of the current month (not just today) so that
+    // payments scheduled later this month, e.g. support on the 25th, are included.
+    this_month: { from: first(y, m), to: last(y, m), label: 'This month' },
     last_month: { from: first(y, m - 1), to: last(y, m - 1), label: 'Last month' },
-    this_quarter: { from: first(y, Math.floor(m / 3) * 3), to: today(), label: 'This quarter' },
-    ytd: { from: `${y}-01-01`, to: today(), label: 'Year to date' },
+    this_quarter: { from: first(y, Math.floor(m / 3) * 3), to: last(y, Math.floor(m / 3) * 3 + 2), label: 'This quarter' },
+    ytd: { from: `${y}-01-01`, to: last(y, m), label: 'Year to date' },
     last_year: { from: `${y - 1}-01-01`, to: `${y - 1}-12-31`, label: 'Last year' },
   };
 }

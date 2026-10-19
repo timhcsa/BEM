@@ -47,6 +47,9 @@ The browser opens at http://localhost:5180. With no Supabase settings, the app r
 5. *(Optional) To bring over what you entered locally:* in the local app, go to **Settings → Data & backup → Download data (.sql)**. Paste that file into the Supabase SQL Editor and run it. It only runs on an empty ledger.
    Don't load the sample data into Supabase.
 
+### Clearing test data before going live for real
+After testing on the live system, run `supabase/clear_test_data.sql` in the Supabase SQL Editor. It removes every transaction and donor but keeps the funds, missionaries, chart of accounts and administrator logins. Then enter your opening balances.
+
 ### 2. Netlify (the website)
 1. Push this folder to GitHub, then in Netlify choose **Add new site → Import from Git**. `netlify.toml` already sets the build.
 2. Under **Site settings → Environment variables**, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, then redeploy.

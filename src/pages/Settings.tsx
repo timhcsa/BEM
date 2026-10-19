@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { MODE, buildDataExportSql, loadSampleData, resetLocalDatabase, rpc, runLocalSql } from '../lib/api';
 import { useApp, useRpc, type Account } from '../lib/store';
+import Users from './Users';
 import { FUNCTIONAL, date, download, money, num, today } from '../lib/format';
 import { Badge, Card, ErrorBox, Field, Modal, Money, MoneyInput, PageHeader } from '../components/ui';
 
-const TABS: [string, string][] = [['organization', 'Organization'], ['opening', 'Opening balances'], ['close', 'Close the books'],
+const TABS: [string, string][] = [['organization', 'Organization'], ['users', 'Users'], ['opening', 'Opening balances'], ['close', 'Close the books'],
   ['accounts', 'Chart of accounts'], ['data', 'Data & backup'], ['audit', 'Change log']];
 
 function Organization() {
@@ -233,7 +234,7 @@ function Audit() {
 }
 
 export default function Settings({ sub = 'organization' }: { sub?: string }) {
-  const C: Record<string, React.FC> = { organization: Organization, opening: Opening, close: Close, accounts: Accounts, data: Data, audit: Audit };
+  const C: Record<string, React.FC> = { users: Users, organization: Organization, opening: Opening, close: Close, accounts: Accounts, data: Data, audit: Audit };
   const Comp = C[sub] ?? Organization;
   return (
     <div>

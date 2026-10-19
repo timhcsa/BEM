@@ -402,3 +402,6 @@ input:disabled { background: var(--surface-2); color: var(--muted); }
 .tax-select.reimbursement { border-color: #b9d7b2; background: #f6fbf4; }
 .tax-summary { margin-left: 12px; }
 .table tr.detail-row > td { background: var(--surface-2); padding: 8px 14px 12px; }
+.pw-row { display: flex; gap: 6px; align-items: center; }
+.pw-row input { font-family: ui-monospace, Menlo, monospace; letter-spacing: .03em; }
+code.pw { font-size: 16px; background: var(--surface-2); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); }
