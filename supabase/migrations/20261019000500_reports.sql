@@ -18,6 +18,8 @@ language sql stable as $$
     'undeposited', (select undeposited from bank),
     'total_funds', (select net_assets from bank),
     'undeposited_count', (select count(*) from gifts where status = 'posted' and deposit_id is null),
+    'unpaid_bills', (select coalesce(sum(total),0) from bills where status = 'open'),
+    'unpaid_count', (select count(*) from bills where status = 'open'),
     'funds', (select coalesce(jsonb_agg(jsonb_build_object('id', f.id, 'code', f.code, 'name', f.name, 'kind', f.kind,
                  'restriction', f.restriction, 'active', f.active, 'balance', _fund_balance(f.id),
                  'missionary_id', m.id, 'photo_url', m.photo_url,
@@ -34,12 +36,14 @@ language sql stable as $$
     'month', jsonb_build_object(
        'gifts', (select coalesce(sum(total_amount),0) from gifts where status = 'posted' and gift_date >= date_trunc('month', current_date)),
        'gift_count', (select count(*) from gifts where status = 'posted' and gift_date >= date_trunc('month', current_date)),
-       'expenses', (select coalesce(sum(total),0) from disbursements where status = 'posted' and disb_date >= date_trunc('month', current_date)),
+       'expenses', (select coalesce(sum(total),0) from disbursements where status = 'posted' and disb_date >= date_trunc('month', current_date))
+                 + (select coalesce(sum(total),0) from bills where status <> 'void' and bill_date >= date_trunc('month', current_date)),
        'admin_fees', (select coalesce(sum(gl.admin_fee),0) from gift_lines gl join gifts g on g.id = gl.gift_id
                        where g.status = 'posted' and g.gift_date >= date_trunc('month', current_date))),
     'ytd', jsonb_build_object(
        'gifts', (select coalesce(sum(total_amount),0) from gifts where status = 'posted' and gift_date >= date_trunc('year', current_date)),
-       'expenses', (select coalesce(sum(total),0) from disbursements where status = 'posted' and disb_date >= date_trunc('year', current_date))),
+       'expenses', (select coalesce(sum(total),0) from disbursements where status = 'posted' and disb_date >= date_trunc('year', current_date))
+                 + (select coalesce(sum(total),0) from bills where status <> 'void' and bill_date >= date_trunc('year', current_date))),
     'last_reconciliation', (select to_jsonb(lastrec) from lastrec),
     'uncleared', (select jsonb_build_object('count', count(*), 'amount', coalesce(sum(b.amount),0))
                     from _bank_items(_acct('bank'), current_date + 3650) b where not _is_cleared(b.entry_id)),

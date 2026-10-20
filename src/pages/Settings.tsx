@@ -34,6 +34,12 @@ function Organization() {
         <Field label="Maximum per missionary per month"><MoneyInput value={String(s.default_admin_fee_cap ?? '')} onChange={(v) => setS({ ...s, default_admin_fee_cap: v })} /></Field>
       </div>
       <p className="muted small">Changing the rate or cap affects gifts entered from now on (and any month that is recalculated because a gift in it is entered or voided).</p>
+      <h3 className="section-label">Mileage</h3>
+      <div className="form-grid">
+        <Field label="Mileage reimbursement rate (per mile)" hint="IRS business rate: 72.5¢ for Jan–Jun 2026, 76¢ from July 1, 2026. Used to fill in mileage lines on expense reports.">
+          <MoneyInput value={String(s.mileage_rate ?? '0.76')} onChange={(v) => setS({ ...s, mileage_rate: v })} />
+        </Field>
+      </div>
       <h3 className="section-label">Form 1099</h3>
       <div className="form-grid">
         <Field label="1099-NEC threshold for 2027 and later" hint="$600 through 2025, $2,000 for 2026, then indexed for inflation. Update when the IRS announces the new figure.">
@@ -48,7 +54,7 @@ function Organization() {
         </Field>
       </div>
       <div className="form-actions"><button className="btn primary" onClick={async () => {
-        try { await rpc('save_settings', { ...s, default_admin_fee_cap: num(s.default_admin_fee_cap), form1099_threshold: num(s.form1099_threshold ?? 2000) }); refresh(); toast('Settings saved'); } catch (e: any) { toast(e.message, 'error'); }
+        try { await rpc('save_settings', { ...s, default_admin_fee_cap: num(s.default_admin_fee_cap), form1099_threshold: num(s.form1099_threshold ?? 2000), mileage_rate: num(s.mileage_rate ?? 0.76) }); refresh(); toast('Settings saved'); } catch (e: any) { toast(e.message, 'error'); }
       }}>Save</button></div>
     </Card>
   );
@@ -129,7 +135,7 @@ function Accounts() {
             {accounts.filter((a) => a.type === t).map((a) => (
               <tr key={a.id} className={`clickable ${a.active ? '' : 'void'}`} onClick={() => setEdit(a)}>
                 <td className="muted">{a.code}</td><td>{a.name} {a.is_system && <Badge>system</Badge>}</td>
-                <td className="small">{a.functional_class ? FUNCTIONAL[a.functional_class] : ''}{(a as any).tax_form && <Badge tone="info">{({ nec1: '1099-NEC', misc1: '1099-MISC rents', misc3: '1099-MISC other' } as any)[(a as any).tax_form]}</Badge>}</td><td className="small muted">{a.description}</td>
+                <td className="small">{a.functional_class ? FUNCTIONAL[a.functional_class] : ''}{a.reimbursable && <Badge tone="good">expense report</Badge>}{a.per_mile && <Badge>per mile</Badge>}{(a as any).tax_form && <Badge tone="info">{({ nec1: '1099-NEC', misc1: '1099-MISC rents', misc3: '1099-MISC other' } as any)[(a as any).tax_form]}</Badge>}</td><td className="small muted">{a.description}</td>
               </tr>
             ))}
           </tbody>
@@ -162,6 +168,8 @@ function Accounts() {
               </Field>
             )}
             <Field label="Description" wide><input value={edit.description ?? ''} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></Field>
+            {edit.type === 'expense' && <label className="check"><input type="checkbox" checked={!!edit.reimbursable} onChange={(e) => setEdit({ ...edit, reimbursable: e.target.checked })} /> Expense report category (listed first when entering a missionary’s expense report)</label>}
+            {edit.type === 'expense' && <label className="check"><input type="checkbox" checked={!!edit.per_mile} onChange={(e) => setEdit({ ...edit, per_mile: e.target.checked })} /> Mileage: enter miles and multiply by the mileage rate</label>}
             {edit.id && !edit.is_system && <label className="check"><input type="checkbox" checked={edit.active !== false} onChange={(e) => setEdit({ ...edit, active: e.target.checked })} /> Active</label>}
           </div>
           <ErrorBox error={err} />

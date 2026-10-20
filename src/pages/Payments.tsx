@@ -73,7 +73,7 @@ export function PaymentEntry({ onPosted }: { onPosted?: () => void }) {
       </div>
       <h3 className="section-label">Charge to</h3>
       <table className="table lines">
-        <thead><tr><th>Fund</th><th>Expense category</th>{isMissionary && <th>Tax (1099)</th>}<th>Function</th><th className="num">Amount</th><th>Line note</th><th /></tr></thead>
+        <thead><tr><th>Fund</th><th>Expense category</th>{isMissionary && <th>Tax (W-2)</th>}<th>Function</th><th className="num">Amount</th><th>Line note</th><th /></tr></thead>
         <tbody>
           {lines.map((l) => {
             const acct = expenseAccounts.find((a) => a.id === l.account_id);
@@ -110,7 +110,7 @@ export function PaymentEntry({ onPosted }: { onPosted?: () => void }) {
         </tbody>
         <tfoot><tr>
           <td colSpan={isMissionary ? 4 : 3}><button className="btn small" onClick={() => setLines([...lines, newLine(lines[lines.length - 1]?.fund_id)])}>+ Add a line</button>
-            {isMissionary && total > 0 && <span className="muted small tax-summary">On their 1099: <strong>{money(taxableTotal)}</strong> · Not reported: {money(total - taxableTotal)}</span>}</td>
+            {isMissionary && total > 0 && <span className="muted small tax-summary">W-2 wages: <strong>{money(taxableTotal)}</strong> · Not reported: {money(total - taxableTotal)}</span>}</td>
           <td className="num total-cell"><Money v={total} /></td><td colSpan={2} />
         </tr></tfoot>
       </table>
@@ -150,7 +150,7 @@ function PaymentDetail({ id, onClose, onChanged }: { id: string; onClose: () => 
         {d.status === 'void' && <><dt>Voided</dt><dd>{d.void_reason}</dd></>}
       </dl>
       <table className="table">
-        <thead><tr><th>Fund</th><th>Category</th><th>Tax (1099)</th><th>Function</th><th className="num">Amount</th><th>Note</th></tr></thead>
+        <thead><tr><th>Fund</th><th>Category</th><th>Tax (W-2)</th><th>Function</th><th className="num">Amount</th><th>Note</th></tr></thead>
         <tbody>{d.lines.map((l: any) => (
           <tr key={l.id}><td>{l.fund_name}</td><td>{l.account_code} · {l.account_name}</td>
             <td>{l.tax_treatment ? <Badge tone={l.tax_treatment === 'taxable' ? 'warn' : 'neutral'}>{TAX_SHORT[l.tax_treatment]}</Badge> : <span className="muted small">account default</span>}</td>

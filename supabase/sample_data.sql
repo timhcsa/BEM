@@ -155,5 +155,21 @@ begin
     'method', 'debit_card', 'day_of_month', 20, 'start_month', to_char(current_date, 'YYYY-MM'),
     'lines', jsonb_build_array(jsonb_build_object('fund_id', f_gen, 'account_id', 'a0000000-0000-0000-0000-000000006040', 'amount', 45))));
 
+  -- Bills and expense reports
+  perform post_bill(jsonb_build_object('missionary_id', m_sutherland, 'bill_date', current_date - 3, 'reference', 'Iowa church visits',
+    'lines', jsonb_build_array(
+      jsonb_build_object('fund_id', f_sutherland, 'account_id', 'a0000000-0000-0000-0000-000000005120', 'amount', 182.40, 'quantity', 240, 'rate', 0.76, 'memo', 'Marshalltown - Union - Eldora'),
+      jsonb_build_object('fund_id', f_sutherland, 'account_id', 'a0000000-0000-0000-0000-000000005110', 'amount', 38.50, 'memo', 'Lunch with Pastor Ellis'),
+      jsonb_build_object('fund_id', f_sutherland, 'account_id', 'a0000000-0000-0000-0000-000000005130', 'amount', 129.00, 'memo', 'Hotel, Eldora'))));
+  perform post_bill(jsonb_build_object('missionary_id', m_hewitt, 'bill_date', current_date - 6, 'reference', 'Prescriptions',
+    'lines', jsonb_build_array(
+      jsonb_build_object('fund_id', f_hewitt, 'account_id', 'a0000000-0000-0000-0000-000000005040', 'amount', 85.00, 'memo', 'Pharmacy receipts'))));
+  perform post_bill(jsonb_build_object('payee_name', 'Brotherhood Mutual', 'bill_date', current_date - 10, 'due_date', current_date + 20,
+    'reference', 'INV-20931',
+    'lines', jsonb_build_array(jsonb_build_object('fund_id', f_gen, 'account_id', 'a0000000-0000-0000-0000-000000006030', 'amount', 450.00, 'memo', 'Liability insurance - quarterly'))));
+  perform pay_bills(jsonb_build_object('pay_date', current_date - 2, 'method', 'check', 'reference', '2104',
+    'bill_ids', jsonb_build_array((post_bill(jsonb_build_object('payee_name', 'Goshen Post Office', 'bill_date', current_date - 8,
+      'lines', jsonb_build_array(jsonb_build_object('fund_id', f_gen, 'account_id', 'a0000000-0000-0000-0000-000000006050', 'amount', 66.00, 'memo', 'Stamps')))))->>'id')));
+
   update settings set ein = '00-0000000', receipt_signer = 'Treasurer, Barnabas Enrichment Ministries' where id = 1;
 end $$;

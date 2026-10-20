@@ -13,13 +13,14 @@ export default function Dashboard() {
   const ministry = funds.filter((f) => f.kind !== 'missionary');
   const missionaries = funds.filter((f) => f.kind === 'missionary');
   const rec = d.last_reconciliation;
-  const tie = Math.abs(Number(d.total_funds) - (Number(d.bank_balance) + Number(d.undeposited))) < 0.005;
+  const tie = Math.abs(Number(d.total_funds) - (Number(d.bank_balance) + Number(d.undeposited) - Number(d.unpaid_bills ?? 0))) < 0.005;
 
   return (
     <div>
       <PageHeader title="Dashboard" subtitle={`As of ${date(d.as_of)}`}
         actions={<>
           <a className="btn primary" href="#/gifts/new">+ Enter gifts</a>
+          <a className="btn" href="#/bills">+ Enter a bill</a>
           <a className="btn" href="#/payments/new">+ Record a payment</a>
         </>} />
 
@@ -34,6 +35,12 @@ export default function Dashboard() {
           </div>
         );
       })()}
+      {Number(d.unpaid_count) > 0 && (
+        <div className="notice-bar">
+          <span><strong>{d.unpaid_count} bill{d.unpaid_count === 1 ? '' : 's'} / expense report{d.unpaid_count === 1 ? '' : 's'}</strong> waiting to be paid ({money(d.unpaid_bills)})</span>
+          <a className="btn small primary" href="#/bills">Review & pay</a>
+        </div>
+      )}
       {d.empty && (
         <Card className="welcome">
           <h2>Welcome to BEM Ledger</h2>
@@ -67,13 +74,13 @@ export default function Dashboard() {
           <span className="tile-label">Total of all funds</span>
           <Money v={d.total_funds} className="big" />
           <span className="tile-note">
-            {tie ? <Badge tone="good">✓ Balanced</Badge> : <Badge tone="bad">Out of balance</Badge>} = bank {money(d.bank_balance)} + undeposited {money(d.undeposited)}
+            {tie ? <Badge tone="good">✓ Balanced</Badge> : <Badge tone="bad">Out of balance</Badge>} = bank {money(d.bank_balance)} + undeposited {money(d.undeposited)}{Number(d.unpaid_bills) ? <> − unpaid bills {money(d.unpaid_bills)}</> : null}
           </span>
         </div>
         <div className="tile">
           <span className="tile-label">This month</span>
           <div className="tile-row"><span>Gifts ({d.month.gift_count})</span><Money v={d.month.gifts} /></div>
-          <div className="tile-row"><span>Payments</span><Money v={d.month.expenses} /></div>
+          <div className="tile-row"><span>Expenses &amp; bills</span><Money v={d.month.expenses} /></div>
           <div className="tile-row"><span>Admin fees to General</span><Money v={d.month.admin_fees} /></div>
         </div>
       </div>

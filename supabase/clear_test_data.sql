@@ -10,7 +10,7 @@
 -- (Posted entries can't normally be deleted; TRUNCATE is used on purpose.)
 -- =====================================================================
 begin;
-truncate reconciliation_items, reconciliations, recurring_runs, recurring_payment_lines, recurring_payments,
+truncate reconciliation_items, reconciliations, bill_lines, bills, bill_payments, recurring_runs, recurring_payment_lines, recurring_payments,
          bank_transactions, gift_lines, gifts, deposits, disbursement_lines, disbursements, transfers,
          journal_lines, journal_entries, donors, audit_log restart identity cascade;
 delete from payees where missionary_id is null;

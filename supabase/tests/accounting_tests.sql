@@ -21,10 +21,10 @@ begin
   g3 := post_gift(jsonb_build_object('donor_id', v_d, 'gift_date', v_month + 3, 'method','check',
         'lines', jsonb_build_array(jsonb_build_object('fund_id', v_f, 'amount', 1000))));
   select sum(admin_fee) into v from gift_lines where fund_id = v_f;
-  assert v = 250, 'cap: expected 250 got ' || v;
-  assert (select admin_fee from gift_lines where gift_id = (g3->>'id')::uuid) = 50, 'third gift fee should be 50';
-  assert _fund_balance(v_f) = 2750, 'fund balance after fees ' || _fund_balance(v_f);
-  assert _fund_balance('f0000000-0000-0000-0000-000000000001') = v_gen + 250, 'general got fees';
+  assert v = 200, 'cap: expected 200 got ' || v;
+  assert (select admin_fee from gift_lines where gift_id = (g3->>'id')::uuid) = 0, 'third gift fee should be 0 (cap reached)';
+  assert _fund_balance(v_f) = 2800, 'fund balance after fees ' || _fund_balance(v_f);
+  assert _fund_balance('f0000000-0000-0000-0000-000000000001') = v_gen + 200, 'general got fees';
 
   -- 2. void the first gift: fees reallocate (100 + 100), general gives back 50
   perform void_gift(jsonb_build_object('id', g1->>'id', 'reason', 'test'));
@@ -42,7 +42,7 @@ begin
 
   -- 4. totals tie out: funds = bank + undeposited, trial balance balances
   v_dash := get_dashboard('{}');
-  assert (v_dash->>'total_funds')::numeric = (v_dash->>'bank_balance')::numeric + (v_dash->>'undeposited')::numeric, 'funds = bank + undeposited';
+  assert (v_dash->>'total_funds')::numeric = (v_dash->>'bank_balance')::numeric + (v_dash->>'undeposited')::numeric - (v_dash->>'unpaid_bills')::numeric, 'funds = bank + undeposited - unpaid bills';
   assert (select sum(_fund_balance(id)) from funds) = (v_dash->>'total_funds')::numeric, 'sum of funds';
   v_tb := report_trial_balance('{}');
   assert v_tb->>'total_debit' = v_tb->>'total_credit', 'trial balance';
@@ -71,8 +71,8 @@ begin
   begin
     perform post_disbursement(jsonb_build_object('disb_date', current_date, 'payee_name','X','method','check',
       'lines', jsonb_build_array(jsonb_build_object('fund_id', v_f, 'account_id','a0000000-0000-0000-0000-000000005000','amount', 999999))));
-  exception when others then v_ok := sqlerrm like 'OVERDRAFT%'; end;
-  assert v_ok, 'overdraft must be blocked';
+  exception when others then v_ok := sqlerrm like 'Not enough in%'; end;
+  assert v_ok, 'missionary overdraft must be blocked';
 
   -- 8. deposit undeposited gifts, then reconcile
   select jsonb_agg(id) into v_ids from gifts where status = 'posted' and deposit_id is null and gift_date <= current_date;
@@ -104,7 +104,7 @@ begin
   assert jsonb_array_length(v_rec->'items') >= 1, 'returned check appears';
   assert exists (select 1 from jsonb_array_elements(v_rec->'items') x where (x->>'amount')::numeric = -1000), 'returned check -1000';
   v_dash := get_dashboard('{}');
-  assert (v_dash->>'total_funds')::numeric = (v_dash->>'bank_balance')::numeric + (v_dash->>'undeposited')::numeric, 'tie-out after NSF';
+  assert (v_dash->>'total_funds')::numeric = (v_dash->>'bank_balance')::numeric + (v_dash->>'undeposited')::numeric - (v_dash->>'unpaid_bills')::numeric, 'tie-out after NSF';
 
   -- 11. statement of activities ties to fund balances
   v_act := report_activities(jsonb_build_object('from', '2000-01-01', 'to', current_date));
@@ -137,19 +137,24 @@ begin
 
   -- 15. export works
   assert jsonb_typeof(export_all_data('{}')->'journal_lines') = 'array', 'export';
+  -- (give the test missionary enough money: missionary accounts can't be overdrawn)
+  perform post_gift(jsonb_build_object('donor_id', v_d, 'gift_date', current_date, 'method','check',
+    'lines', jsonb_build_array(jsonb_build_object('fund_id', v_f, 'amount', 10000, 'fee_exempt', true))));
   -- 16. payees & 1099: a payment to a missionary links their payee and counts in box 1
   perform post_disbursement(jsonb_build_object('disb_date', current_date, 'payee_name', 'ignored', 'missionary_id', v_m->>'id',
     'method', 'ach', 'allow_overdraft', true,
     'lines', jsonb_build_array(jsonb_build_object('fund_id', v_f, 'account_id', 'a0000000-0000-0000-0000-000000005000', 'amount', 2500),
                                jsonb_build_object('fund_id', v_f, 'account_id', 'a0000000-0000-0000-0000-000000005100', 'amount', 100))));
-  assert (select (r->>'nec1')::numeric from jsonb_array_elements(report_1099(jsonb_build_object('year', extract(year from current_date)))->'recipients') r
-           where r->>'display_name' = 'Test Missionary Family') = 2500, '1099 box 1 excludes reimbursements';
+  assert (select (r->>'wages')::numeric from jsonb_array_elements(report_w2(jsonb_build_object('year', extract(year from current_date)))->'employees') r
+           where r->>'display_name' = 'Test Missionary Family') = 2500, 'W-2 wages exclude reimbursements';
+  assert not exists (select 1 from jsonb_array_elements(report_1099(jsonb_build_object('year', extract(year from current_date)))->'recipients') r
+           where r->>'display_name' = 'Test Missionary Family'), 'employees are not on the 1099 report';
   -- debit card payments are excluded (1099-K)
   perform post_disbursement(jsonb_build_object('disb_date', current_date, 'payee_name', 'x', 'missionary_id', v_m->>'id',
     'method', 'debit_card', 'allow_overdraft', true,
     'lines', jsonb_build_array(jsonb_build_object('fund_id', v_f, 'account_id', 'a0000000-0000-0000-0000-000000005000', 'amount', 50))));
-  assert (select (r->>'nec1')::numeric from jsonb_array_elements(report_1099(jsonb_build_object('year', extract(year from current_date)))->'recipients') r
-           where r->>'display_name' = 'Test Missionary Family') = 2500, 'card payments excluded';
+  assert (select (r->>'wages')::numeric from jsonb_array_elements(report_w2(jsonb_build_object('year', extract(year from current_date)))->'employees') r
+           where r->>'display_name' = 'Test Missionary Family') = 2550, 'W-2 wages include pay by any method';
   assert _1099_threshold(2025) = 600 and _1099_threshold(2026) = 2000, 'thresholds';
 
   -- 17. donor import: dry run writes nothing; skip vs update
@@ -180,6 +185,8 @@ begin
   declare v_m2 jsonb; v_f2 uuid;
   begin
     v_m2 := save_missionary('{"display_name":"Tax Treatment Test"}'); v_f2 := (v_m2->>'fund_id')::uuid;
+    perform post_gift(jsonb_build_object('donor_id', v_d, 'gift_date', current_date, 'method','check',
+      'lines', jsonb_build_array(jsonb_build_object('fund_id', v_f2, 'amount', 5000, 'fee_exempt', true))));
     perform post_disbursement(jsonb_build_object('disb_date', current_date, 'payee_name', 'x', 'missionary_id', v_m2->>'id', 'method', 'ach', 'allow_overdraft', true,
       'lines', jsonb_build_array(
         jsonb_build_object('fund_id', v_f2, 'account_id', 'a0000000-0000-0000-0000-000000005000', 'amount', 1000),                                  -- default taxable
@@ -188,12 +195,56 @@ begin
         jsonb_build_object('fund_id', v_f2, 'account_id', 'a0000000-0000-0000-0000-000000005100', 'amount', 30, 'tax_treatment', 'taxable'),
         jsonb_build_object('fund_id', v_f2, 'account_id', 'a0000000-0000-0000-0000-000000005030', 'amount', 400),                                   -- extra funds: taxable
         jsonb_build_object('fund_id', v_f2, 'account_id', 'a0000000-0000-0000-0000-000000005010', 'amount', 300))));                                -- housing
-    assert (select (r->>'nec1')::numeric from jsonb_array_elements(report_1099(jsonb_build_object('year', extract(year from current_date)))->'recipients') r
+    assert (select (r->>'wages')::numeric from jsonb_array_elements(report_w2(jsonb_build_object('year', extract(year from current_date)))->'employees') r
              where r->>'display_name' = 'Tax Treatment Test') = 1430, 'taxable = 1000 + 30 + 400';
-    assert (select (r->>'reimbursed')::numeric from jsonb_array_elements(report_1099(jsonb_build_object('year', extract(year from current_date)))->'recipients') r
+    assert (select (r->>'reimbursed')::numeric from jsonb_array_elements(report_w2(jsonb_build_object('year', extract(year from current_date)))->'employees') r
              where r->>'display_name' = 'Tax Treatment Test') = 250, 'reimbursed = 200 + 50';
-    assert (select (r->>'housing')::numeric from jsonb_array_elements(report_1099(jsonb_build_object('year', extract(year from current_date)))->'recipients') r
+    assert (select (r->>'housing')::numeric from jsonb_array_elements(report_w2(jsonb_build_object('year', extract(year from current_date)))->'employees') r
              where r->>'display_name' = 'Tax Treatment Test') = 300, 'housing';
+  end;
+
+  -- 20. bills & expense reports (accrual): entry books the expense + payable; payment clears it from the bank
+  declare v_m3 jsonb; v_f3 uuid; v_bill jsonb; v_bill2 jsonb; v_pay jsonb; v_ok2 boolean; v_vendor jsonb;
+  begin
+    v_m3 := save_missionary('{"display_name":"Bill Test Family"}'); v_f3 := (v_m3->>'fund_id')::uuid;
+    v_bill := post_bill(jsonb_build_object('missionary_id', v_m3->>'id', 'bill_date', current_date, 'reference', 'Oct report',
+      'lines', jsonb_build_array(
+        jsonb_build_object('fund_id', v_f3, 'account_id', 'a0000000-0000-0000-0000-000000005120', 'amount', 76, 'quantity', 100, 'rate', 0.76),
+        jsonb_build_object('fund_id', v_f3, 'account_id', 'a0000000-0000-0000-0000-000000005040', 'amount', 50))));
+    assert v_bill->>'kind' = 'expense_report' and (v_bill->>'total')::numeric = 126, 'expense report total';
+    assert _fund_balance(v_f3) = -126 and _fund_cash(v_f3) = 0 and _fund_unpaid(v_f3) = 126, 'accrued: net assets down, cash unchanged';
+    -- empty account: payment refused
+    v_ok2 := false;
+    begin perform pay_bills(jsonb_build_object('pay_date', current_date, 'method', 'ach', 'bill_ids', jsonb_build_array(v_bill->>'id')));
+    exception when others then v_ok2 := sqlerrm like 'Not enough in the missionary account%'; end;
+    assert v_ok2, 'missionary expense report waits for donations';
+    -- donations arrive, then it can be paid by EFT
+    perform post_gift(jsonb_build_object('donor_id', v_d, 'gift_date', current_date, 'method','cash',
+      'lines', jsonb_build_array(jsonb_build_object('fund_id', v_f3, 'amount', 500))));
+    v_pay := pay_bills(jsonb_build_object('pay_date', current_date, 'method', 'ach', 'reference', 'EFT-1', 'bill_ids', jsonb_build_array(v_bill->>'id')));
+    assert (select status from bills where id = (v_bill->>'id')::uuid) = 'paid', 'bill paid';
+    assert _fund_unpaid(v_f3) = 0 and _fund_balance(v_f3) = _fund_cash(v_f3), 'no payable left';
+    -- check payments need a check number
+    v_vendor := post_bill(jsonb_build_object('payee_name', 'Goshen Post Office', 'bill_date', current_date,
+      'lines', jsonb_build_array(jsonb_build_object('fund_id', 'f0000000-0000-0000-0000-000000000001', 'account_id', 'a0000000-0000-0000-0000-000000006050', 'amount', 58))));
+    assert v_vendor->>'kind' = 'bill', 'vendor bill';
+    v_ok2 := false;
+    begin perform pay_bills(jsonb_build_object('pay_date', current_date, 'method', 'check', 'bill_ids', jsonb_build_array(v_vendor->>'id')));
+    exception when others then v_ok2 := sqlerrm like 'Enter the check number%'; end;
+    assert v_ok2, 'check number required';
+    v_pay := pay_bills(jsonb_build_object('pay_date', current_date, 'method', 'check', 'reference', '2101', 'bill_ids', jsonb_build_array(v_vendor->>'id')));
+    -- void payment re-opens the bill; void bill afterwards
+    perform void_bill_payment(jsonb_build_object('id', v_pay->>'id', 'reason', 'test'));
+    assert (select status from bills where id = (v_vendor->>'id')::uuid) = 'open', 'bill reopened';
+    perform void_bill(jsonb_build_object('id', v_vendor->>'id', 'reason', 'test'));
+    -- medical reimbursement shows on the W-2 worksheet as medical, mileage as reimbursement
+    assert (select (r->>'medical')::numeric from jsonb_array_elements(report_w2(jsonb_build_object('year', extract(year from current_date)))->'employees') r
+             where r->>'display_name' = 'Bill Test Family') = 50, 'medical on W-2 worksheet';
+    -- books still tie out
+    v_dash := get_dashboard('{}');
+    assert (v_dash->>'total_funds')::numeric = (v_dash->>'bank_balance')::numeric + (v_dash->>'undeposited')::numeric - (v_dash->>'unpaid_bills')::numeric, 'funds = bank + undeposited - unpaid bills';
+    v_tb := report_trial_balance('{}');
+    assert v_tb->>'total_debit' = v_tb->>'total_credit', 'trial balance with payables';
   end;
 
   raise notice 'ALL ACCOUNTING TESTS PASSED';

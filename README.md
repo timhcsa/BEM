@@ -47,6 +47,9 @@ The browser opens at http://localhost:5180. With no Supabase settings, the app r
 5. *(Optional) To bring over what you entered locally:* in the local app, go to **Settings → Data & backup → Download data (.sql)**. Paste that file into the Supabase SQL Editor and run it. It only runs on an empty ledger.
    Don't load the sample data into Supabase.
 
+### Managing users (Settings → Users)
+Administrators add users (with a temporary password), reset passwords and remove users inside the app. This needs the **admin-users** Edge Function: in Supabase go to **Edge Functions → Deploy a new function → Via Editor**, name it `admin-users`, paste `supabase/functions/admin-users/index.ts`, and click **Deploy**. Supabase supplies the privileged service key to the function automatically; it never reaches the browser.
+
 ### Clearing test data before going live for real
 After testing on the live system, run `supabase/clear_test_data.sql` in the Supabase SQL Editor. It removes every transaction and donor but keeps the funds, missionaries, chart of accounts and administrator logins. Then enter your opening balances.
 
@@ -67,11 +70,17 @@ To try Supabase from your Mac before deploying, put the same two values in a fil
 | Admin fee | Missionary fund: Dr 3910 Interfund / Cr 1000 Checking · General Fund: Dr 1000 / Cr 3910 |
 | Deposit | Dr 1000 Checking / Cr 1050 Undeposited Gifts |
 | Payment | Dr 5xxx–6xxx Expense (+ functional class) / Cr 1000 Checking |
+| Bill / expense report entered | Dr 5xxx–6xxx Expense / Cr 2000 Accounts Payable |
+| Bill paid (check # or EFT) | Dr 2000 Accounts Payable / Cr 1000 Checking |
 | Transfer | From fund: Dr 3920 / Cr 1000 · To fund: Dr 1000 / Cr 3920 |
 | Opening balance | Dr 1000 / Cr 3000 (without) or 3100 (with donor restrictions) |
 
 - Each fund's balance is its share of the pooled bank account. Interfund entries net to $0.00 across the organization.
 - Missionary, Conference and Triage funds are classified **with donor restrictions**. The Statement of Activities shows money they spend (and admin fees they pay) as *net assets released from restrictions*. **Have BEM's CPA confirm these classifications.** The class can be changed per fund until the fund has activity.
+- **Admin fee**: 10% of each month's gifts to a missionary, capped at $200 per missionary per month (Settings → Admin fee).
+- **Bills & expense reports** (menu: Bills & expense reports): enter a missionary's expense report (business meals, mileage at the IRS rate, lodging, travel, office supplies, medical…) or a vendor bill when it arrives, then pay it later by check or EFT. Reimbursements come out of the missionary's own account and **can't be paid until the account has the cash**; they wait under "To pay" until more donations come in. General Fund bills (postage, insurance, office supplies, BEM mileage) can be paid the same way, or directly from Payments.
+- **Missionaries are employees.** Salary is W-2 wages, the board-designated housing allowance is tracked separately (W-2 box 14), and business/medical reimbursements are kept off wages. Reports → W-2 worksheet totals each employee for the payroll service or CPA. 1099s are for contractors only.
+- The bank tie-out is: total of all funds = bank + undeposited gifts − unpaid bills.
 - A gift voided **after** it was deposited (for example a returned check) is reversed against Checking, so it shows on the next reconciliation.
 
 ## Future: connecting the bank

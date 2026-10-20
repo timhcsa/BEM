@@ -71,7 +71,7 @@ function RecurringForm({ initial, onClose, onSaved }: { initial?: any; onClose: 
       </div>
       <h3 className="section-label">Each month, pay</h3>
       <table className="table lines">
-        <thead><tr><th>Fund</th><th>Category</th>{isMissionary && <th>Tax (1099)</th>}<th>Function</th><th className="num">Amount</th><th /></tr></thead>
+        <thead><tr><th>Fund</th><th>Category</th>{isMissionary && <th>Tax (W-2)</th>}<th>Function</th><th className="num">Amount</th><th /></tr></thead>
         <tbody>{lines.map((l) => {
           const a = accounts.find((x) => x.id === l.account_id);
           return (
@@ -90,7 +90,7 @@ function RecurringForm({ initial, onClose, onSaved }: { initial?: any; onClose: 
         <tfoot><tr><td colSpan={isMissionary ? 4 : 3}><button className="btn small" onClick={() => setLines([...lines, newLine(lines[0]?.fund_id)])}>+ Add a line</button></td>
           <td className="num total-cell"><Money v={total} /></td><td /></tr></tfoot>
       </table>
-      <p className="muted small">Tip for ministers: put the board-designated housing allowance on its own line (5010) so it's tracked separately from salary for the year-end 1099 or W-2.</p>
+      <p className="muted small">Tip for ministers: put the board-designated housing allowance on its own line (5010) so it's tracked separately from salary for the year-end W-2.</p>
       <ErrorBox error={err} />
     </Modal>
   );

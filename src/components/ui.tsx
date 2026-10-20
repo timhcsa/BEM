@@ -233,7 +233,7 @@ export function defaultTaxTreatment(account?: { code: string; tax_form?: string 
 export function TaxTreatmentSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <select className={`tax-select ${value}`} value={value} onChange={(e) => onChange(e.target.value)}
-      title="Taxable: salary or extra funds for personal use, reported on the 1099. Non-taxable: business expenses repaid with receipts, not reported. Housing allowance: board-designated, not in 1099 box 1.">
+      title="Taxable: salary or extra funds for personal use, W-2 wages. Non-taxable: business expenses repaid with receipts (accountable plan), not wages. Housing allowance: board-designated, W-2 box 14, not in box 1.">
       {Object.entries(TAX_TREATMENTS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
     </select>
   );

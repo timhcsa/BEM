@@ -60,12 +60,12 @@ export async function runLocalSql(sql: string) {
 // does not block loading historical entries.
 const TABLE_ORDER = [
   'accounts', 'funds', 'missionaries', 'payees', 'recurring_payments', 'recurring_payment_lines', 'donors', 'journal_entries', 'journal_lines', 'deposits', 'gifts',
-  'gift_lines', 'disbursements', 'disbursement_lines', 'recurring_runs', 'transfers', 'reconciliations', 'reconciliation_items',
+  'gift_lines', 'disbursements', 'disbursement_lines', 'recurring_runs', 'bill_payments', 'bills', 'bill_lines', 'transfers', 'reconciliations', 'reconciliation_items',
   'bank_transactions', 'audit_log', 'settings',
 ];
 const IDENTITY: [string, string][] = [
   ['donors', 'donor_number'], ['journal_entries', 'entry_number'], ['deposits', 'deposit_number'],
-  ['gifts', 'gift_number'], ['disbursements', 'disb_number'], ['audit_log', 'id'],
+  ['gifts', 'gift_number'], ['disbursements', 'disb_number'], ['bills', 'bill_number'], ['bill_payments', 'payment_number'], ['audit_log', 'id'],
 ];
 
 // Builds a SQL script containing all data. Run it on a fresh database

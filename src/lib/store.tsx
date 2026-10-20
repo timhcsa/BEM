@@ -10,6 +10,7 @@ export type Fund = {
 export type Account = {
   id: string; code: string; name: string; type: string; subtype: string | null; functional_class: string | null;
   description: string | null; is_system: boolean; active: boolean;
+  tax_form?: string | null; reimbursable?: boolean; per_mile?: boolean;
 };
 export type Settings = Record<string, any>;
 export type Lookups = { settings: Settings; funds: Fund[]; accounts: Account[]; missionaries: any[] };

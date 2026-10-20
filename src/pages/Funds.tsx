@@ -4,24 +4,25 @@ import { go, useApp, type Fund } from '../lib/store';
 import { money } from '../lib/format';
 import { Badge, Card, ErrorBox, Field, Modal, Money, PageHeader } from '../components/ui';
 
-const KIND: Record<string, string> = { general: 'General', conference: 'Conference', missionary: 'Missionary', other: 'Other designated' };
+const KIND: Record<string, string> = { general: 'General', conference: 'Conference', missionary: 'Missionary', other: 'Project / designated' };
 
 function FundForm({ initial, onClose, onSaved }: { initial?: Partial<Fund>; onClose: () => void; onSaved: () => void }) {
-  const [f, setF] = useState<any>(initial ?? { kind: 'other', restriction: 'with', admin_fee_applies: false, active: true, sort: 100 });
+  const [f, setF] = useState<any>({ kind: 'other', restriction: 'with', admin_fee_applies: false, active: true, sort: 100, ...(initial ?? {}) });
   const [err, setErr] = useState<string | null>(null);
   const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
   return (
-    <Modal title={f.id ? `Edit ${f.name}` : 'New fund'} onClose={onClose}
+    <Modal title={f.id ? `Edit ${f.name}` : 'New project fund'} onClose={onClose}
       footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn primary" onClick={async () => {
         try { await rpc('save_fund', f); onSaved(); } catch (e: any) { setErr(e.message); }
       }}>Save</button></>}>
+      {!f.id && <p className="muted small">A project fund (a building project, a mission trip, a relief effort…) shows up right away in the fund list when entering gifts and payments, and gets its own statement.</p>}
       {f.kind === 'missionary' && <p className="muted">Missionary funds are created and named from the Missionaries page.</p>}
       <div className="form-grid">
-        <Field label="Code"><input value={f.code ?? ''} onChange={set('code')} placeholder="e.g. BUILD" /></Field>
+        <Field label="Code"><input value={f.code ?? ''} onChange={set('code')} placeholder="e.g. HAITI26" /></Field>
         <Field label="Name"><input value={f.name ?? ''} onChange={set('name')} /></Field>
         {!f.is_system && f.kind !== 'missionary' && (
           <Field label="Type"><select value={f.kind} onChange={set('kind')}>
-            <option value="conference">Conference</option><option value="other">Other designated</option></select></Field>
+            <option value="other">Project / designated</option><option value="conference">Conference</option></select></Field>
         )}
         <Field label="Net asset class" hint="Gifts a donor designates for a purpose are usually “with donor restrictions”. Confirm with your CPA.">
           <select value={f.restriction} onChange={set('restriction')}>
@@ -46,13 +47,13 @@ export default function Funds() {
   const total = funds.reduce((s, f) => s + Number(f.balance), 0);
   const groups: [string, Fund[]][] = [
     ['Ministry funds', funds.filter((f) => f.kind === 'general' || f.kind === 'conference')],
-    ['Other designated funds', funds.filter((f) => f.kind === 'other')],
+    ['Project & designated funds', funds.filter((f) => f.kind === 'other')],
     ['Missionary accounts', funds.filter((f) => f.kind === 'missionary')],
   ];
   return (
     <div>
       <PageHeader title="Funds" subtitle="Each fund is its own set of books. Together they add up to the money in the bank (plus undeposited gifts)."
-        actions={<button className="btn primary" onClick={() => setEditing({})}>+ New fund</button>} />
+        actions={<button className="btn primary" onClick={() => setEditing({})}>+ New project fund</button>} />
       <Card>
         <table className="table">
           <thead><tr><th>Code</th><th>Fund</th><th>Type</th><th>Net asset class</th><th>Admin fee</th><th className="num">Balance</th><th /></tr></thead>

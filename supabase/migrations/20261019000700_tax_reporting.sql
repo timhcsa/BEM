@@ -41,6 +41,9 @@ create table if not exists payees (
 create unique index if not exists payees_display_name_uq on payees (lower(display_name));
 
 alter table disbursements add column if not exists payee_id uuid references payees(id);
+-- employee (W-2, e.g. missionaries), contractor (1099) or vendor (business; usually no 1099)
+alter table payees add column if not exists worker_type text not null default 'vendor'
+  check (worker_type in ('employee','contractor','vendor'));
 alter table accounts add column if not exists tax_form text check (tax_form in ('nec1','misc1','misc3'));
 alter table settings add column if not exists form1099_threshold numeric(12,2) not null default 2000.00;
 
@@ -63,10 +66,11 @@ begin
   -- reuse a payee with the same name if one exists
   select id into v from payees where lower(display_name) = lower(v_name) and missionary_id is null;
   if v is not null then
-    update payees set missionary_id = p_missionary, is_1099 = true where id = v;
+    update payees set missionary_id = p_missionary, worker_type = 'employee', is_1099 = false where id = v;
     return v;
   end if;
-  insert into payees(display_name, missionary_id, is_1099) values (v_name, p_missionary, true) returning id into v;
+  -- BEM treats missionaries as employees (W-2), not 1099 contractors
+  insert into payees(display_name, missionary_id, is_1099, worker_type) values (v_name, p_missionary, false, 'employee') returning id into v;
   return v;
 end $$;
 
@@ -168,7 +172,10 @@ begin
     address_line1 = nullif(trim(p->>'address_line1'),''), address_line2 = nullif(trim(p->>'address_line2'),''),
     city = nullif(trim(p->>'city'),''), state = nullif(upper(trim(p->>'state')),''), postal_code = nullif(trim(p->>'postal_code'),''),
     email = nullif(trim(p->>'email'),''),
-    is_1099 = coalesce((p->>'is_1099')::boolean, false), w9_on_file = coalesce((p->>'w9_on_file')::boolean, false),
+    worker_type = coalesce(nullif(p->>'worker_type',''), worker_type),
+    is_1099 = case when coalesce(nullif(p->>'worker_type',''), worker_type) = 'employee' then false
+                   else coalesce((p->>'is_1099')::boolean, false) end,
+    w9_on_file = coalesce((p->>'w9_on_file')::boolean, false),
     notes = nullif(trim(p->>'notes'),''), active = coalesce((p->>'active')::boolean, true)
   where id = v_id;
   perform _log('save', 'payee', v_id, p - 'tin');
@@ -239,10 +246,14 @@ begin
             nullif(trim(p->>'description'),''), coalesce(nullif(p->>'sort','')::int, (trim(p->>'code'))::int),
             case when p->>'type' = 'expense' then nullif(p->>'tax_form','') end)
     returning id into v_id;
+    update accounts set reimbursable = coalesce((p->>'reimbursable')::boolean, false), per_mile = coalesce((p->>'per_mile')::boolean, false)
+     where id = v_id and type = 'expense';
   else
     update accounts set code = case when is_system then code else trim(p->>'code') end, name = trim(p->>'name'),
       functional_class = case when type = 'expense' then coalesce(nullif(p->>'functional_class',''), functional_class) end,
       tax_form = case when type = 'expense' then nullif(p->>'tax_form','') end,
+      reimbursable = case when type = 'expense' then coalesce((p->>'reimbursable')::boolean, reimbursable) else false end,
+      per_mile = case when type = 'expense' then coalesce((p->>'per_mile')::boolean, per_mile) else false end,
       description = nullif(trim(p->>'description'),''),
       active = case when is_system then true else coalesce((p->>'active')::boolean, active) end
     where id = v_id;

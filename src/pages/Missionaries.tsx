@@ -82,6 +82,7 @@ export default function Missionaries() {
                 <div className="m-name">{m.display_name}</div>
                 <div className="m-role">{m.role_title}{!m.active && ' · inactive'}</div>
                 <div className="m-balance"><Money v={m.balance} accounting /></div>
+                {Number(m.unpaid) > 0 && <div className="muted small">{money(m.unpaid)} in expense reports waiting to be paid</div>}
                 <div className="m-stats">
                   <span>This month <strong>{money(m.mtd_gifts)}</strong></span>
                   <span>Year to date <strong>{money(m.ytd_gifts)}</strong></span>
@@ -144,6 +145,7 @@ export function FundAccount({ missionaryId, fundId }: { missionaryId?: string; f
         <div className="acct-balance">
           <span className="tile-label">Current balance</span>
           <Money v={a.current_balance} accounting className="big" />
+          {Number(a.unpaid) > 0 && <span className="muted small">After {money(a.unpaid)} owed on unpaid <a href="#/bills">expense reports</a></span>}
         </div>
       </div>
 
@@ -152,6 +154,7 @@ export function FundAccount({ missionaryId, fundId }: { missionaryId?: string; f
         <div className="spacer" />
         {m && <button className="btn" onClick={() => setEditing(true)}>Edit details</button>}
         {m && <button className="btn" onClick={() => setTaxInfo(true)}>Tax info (W-9)</button>}
+        <a className="btn" href="#/bills">Enter expense report</a>
         <a className="btn" href={`#/payments`}>Record a payment</a>
         <button className="btn" onClick={() => window.print()}>Print statement</button>
       </div>

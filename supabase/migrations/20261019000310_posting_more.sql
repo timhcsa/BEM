@@ -132,9 +132,14 @@ begin
     v_total := v_total + v_amt;
   end loop;
 
-  -- overdraft check per fund
+  -- overdraft check per fund. Missionary accounts can never go below zero:
+  -- the missionary is paid once more donations have come in.
   for r in select (x->>'fund_id')::uuid fund_id, sum(_money(x->>'amount','Amount')) amt
              from jsonb_array_elements(p->'lines') x group by 1 loop
+    if _fund_balance(r.fund_id) - r.amt < 0 and (select kind from funds where id = r.fund_id) = 'missionary' then
+      raise exception 'Not enough in % (balance %, payment %). It can be paid once more donations come in.',
+        (select name from funds where id = r.fund_id), _fmt(_fund_balance(r.fund_id)), _fmt(r.amt);
+    end if;
     if _fund_balance(r.fund_id) - r.amt < 0 then
       v_short := v_short || (select name from funds where id = r.fund_id) || ' would be '
                  || _fmt(_fund_balance(r.fund_id) - r.amt) || '; ';
@@ -337,6 +342,10 @@ language sql stable as $$
     when 'gift' then (select coalesce(d.display_name, 'Anonymous') || ' - ' || case g.method when 'ach' then 'ACH' else g.method end || coalesce(' #' || g.reference, '')
                         from gifts g left join donors d on d.id = g.donor_id where g.id = e.source_id)
     when 'deposit' then (select 'Deposit #' || deposit_number || coalesce(' - ' || memo, '') from deposits where id = e.source_id)
+    when 'bill' then (select case kind when 'expense_report' then 'Expense report' else 'Bill' end || ' #' || bill_number || ' - ' || payee_name
+                             || coalesce(' (' || reference || ')', '') from bills where id = e.source_id)
+    when 'bill_payment' then (select 'Bill payment - ' || payee_name || ' - ' || case method when 'check' then 'check' when 'ach' then 'EFT' else method end
+                                     || coalesce(' #' || reference, '') from bill_payments where id = e.source_id)
     when 'disbursement' then (select payee_name || ' - ' || case method when 'check' then 'check' when 'ach' then 'ACH' when 'debit_card' then 'debit card'
                                      when 'wire' then 'wire' when 'bank_fee' then 'bank charge' else 'other' end
                                      || coalesce(' #' || reference, '') from disbursements where id = e.source_id)

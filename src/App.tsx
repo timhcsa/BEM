@@ -14,6 +14,7 @@ import Adjustments from './pages/Adjustments';
 import Settings from './pages/Settings';
 import Payees from './pages/Payees';
 import Recurring from './pages/Recurring';
+import Bills from './pages/Bills';
 import Login from './pages/Login';
 
 const NAV: [string, string, string][] = [
@@ -21,6 +22,7 @@ const NAV: [string, string, string][] = [
   ['gifts/new', 'Enter gifts', '＋'],
   ['gifts', 'Gifts', '♥'],
   ['deposits', 'Deposits', '⇩'],
+  ['bills', 'Bills & expense reports', '✉'],
   ['payments', 'Payments', '⇧'],
   ['recurring', 'Recurring payments', '↻'],
   ['payees', 'Payees & W-9s', '✎'],
@@ -46,6 +48,7 @@ function Shell({ onSignOut, email }: { onSignOut?: () => void; email?: string })
     case 'deposits': content = <Deposits />; break;
     case 'payments': content = <Payments />; break;
     case 'payees': content = <Payees />; break;
+    case 'bills': content = <Bills />; break;
     case 'recurring': content = <Recurring />; break;
     case 'missionaries': content = a ? <FundAccount key={a} missionaryId={a} /> : <Missionaries />; break;
     case 'funds': content = a ? <FundAccount key={a} fundId={a} /> : <Funds />; break;

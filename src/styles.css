@@ -405,3 +405,16 @@ input:disabled { background: var(--surface-2); color: var(--muted); }
 .pw-row { display: flex; gap: 6px; align-items: center; }
 .pw-row input { font-family: ui-monospace, Menlo, monospace; letter-spacing: .03em; }
 code.pw { font-size: 16px; background: var(--surface-2); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); }
+
+/* Bills */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { background: #fff; border: none; padding: 7px 14px; font: inherit; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--navy); color: #fff; }
+.pay-groups { display: grid; gap: 14px; }
+.pay-group { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.pay-group.waiting { background: #fffaf0; border-color: #f0d9a8; }
+.pay-head { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
+.pay-bar { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-top: 8px; }
+.pay-bar .field { min-width: 150px; }
+.warn-text { color: #9a6200; }

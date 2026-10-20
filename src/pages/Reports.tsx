@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { go, routeQuery, useApp, useRpc } from '../lib/store';
 import { METHODS, acct, date, download, money, periods, toCsv, today, type Period } from '../lib/format';
 import Form1099 from './Form1099';
+import W2 from './W2';
 import { Card, Empty, ErrorBox, FundSelect, Loading, Money, PageHeader, PeriodPicker } from '../components/ui';
 
 const REPORTS: [string, string, string][] = [
@@ -10,7 +11,8 @@ const REPORTS: [string, string, string][] = [
   ['functional', 'Statement of Functional Expenses', 'Expenses split between program, management & general, and fundraising.'],
   ['funds', 'Fund Activity Summary', 'Every fund: beginning balance, gifts, admin fees, payments, ending balance.'],
   ['statements', 'Year-end donor tax statements', 'A contribution statement for every donor, with the IRS acknowledgment wording. Print, save as PDF, or filter mail vs. email.'],
-  ['1099', '1099s for staff & contractors', 'Form 1099-NEC/MISC totals, W-9 checks, recipient copies and an e-file CSV.'],
+  ['w2', 'W-2 worksheet for missionaries', 'Salary, housing allowance, medical and expense reimbursements per employee for the year, ready for your payroll service or CPA.'],
+  ['1099', '1099s for contractors', 'Form 1099-NEC/MISC totals for non-employees, W-9 checks, recipient copies and an e-file CSV.'],
   ['trial', 'Trial Balance', 'Debits equal credits check, by account.'],
   ['ledger', 'General Ledger', 'Every journal line, filterable by account and fund. Exports to CSV for your CPA.'],
 ];
@@ -325,7 +327,7 @@ function Statements() {
 }
 
 export default function Reports({ sub }: { sub?: string }) {
-  const comps: Record<string, React.FC> = { '1099': Form1099, position: Position, activities: Activities, functional: Functional, funds: FundActivity, trial: Trial, ledger: Ledger, statements: Statements };
+  const comps: Record<string, React.FC> = { '1099': Form1099, w2: W2, position: Position, activities: Activities, functional: Functional, funds: FundActivity, trial: Trial, ledger: Ledger, statements: Statements };
   const C = sub ? comps[sub] : null;
   if (C) return <C />;
   return (

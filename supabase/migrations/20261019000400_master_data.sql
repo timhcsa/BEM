@@ -175,6 +175,8 @@ language sql stable as $$
   select coalesce(jsonb_agg(to_jsonb(m) || jsonb_build_object(
       'fund', _fund_json(f),
       'balance', _fund_balance(f.id),
+      'cash', _fund_cash(f.id),
+      'unpaid', _fund_unpaid(f.id),
       'mtd_gifts', (select coalesce(sum(gl.amount),0) from gift_lines gl join gifts g on g.id = gl.gift_id
                      where gl.fund_id = f.id and g.status = 'posted' and g.gift_date >= date_trunc('month', current_date)),
       'ytd_gifts', (select coalesce(sum(gl.amount),0) from gift_lines gl join gifts g on g.id = gl.gift_id
@@ -206,6 +208,7 @@ begin
          when e.source_type = 'gift' then 'gift'
          when e.source_type = 'admin_fee' then 'admin_fee'
          when e.source_type = 'disbursement' then 'expense'
+         when e.source_type = 'bill' then 'expense'
          when e.source_type = 'transfer' then 'transfer'
          when e.source_type = 'opening' then 'opening'
          when e.source_type = 'reversal' then 'void'
@@ -217,6 +220,14 @@ begin
                                                           when 'housing' then ' (housing allowance)' else '' end, '; ')
                           from disbursement_lines dl join accounts a on a.id = dl.account_id
                          where dl.disbursement_id = e.source_id and dl.fund_id = v_fund)
+                     when e.source_type = 'bill' then
+                       (select string_agg(a.name || coalesce(' - ' || bl.memo, '')
+                                 || case when bl.quantity is not null then ' (' || bl.quantity || ' mi)' else '' end
+                                 || case bl.tax_treatment when 'taxable' then ' (taxable)' when 'reimbursement' then ' (reimbursement)'
+                                                          when 'housing' then ' (housing allowance)' else '' end
+                                 || case when b.status = 'open' then ' - UNPAID' else '' end, '; ')
+                          from bill_lines bl join accounts a on a.id = bl.account_id join bills b on b.id = bl.bill_id
+                         where bl.bill_id = e.source_id and bl.fund_id = v_fund)
                      when e.source_type = 'gift' then
                        (select string_agg(memo, '; ') from journal_lines jl2 where jl2.entry_id = e.id and jl2.fund_id = v_fund and memo is not null)
                      else null end,
@@ -241,6 +252,12 @@ begin
     'opening_balance', v_open,
     'closing_balance', _fund_balance(v_fund, v_to),
     'current_balance', _fund_balance(v_fund),
+    'cash', _fund_cash(v_fund),
+    'unpaid', _fund_unpaid(v_fund),
+    'unpaid_bills', (select coalesce(jsonb_agg(jsonb_build_object('id', b.id, 'bill_number', b.bill_number, 'kind', b.kind,
+                        'bill_date', b.bill_date, 'reference', b.reference, 'amount', s.amt) order by b.bill_date), '[]')
+                       from bills b join (select bill_id, sum(amount) amt from bill_lines where fund_id = v_fund group by bill_id) s on s.bill_id = b.id
+                      where b.status = 'open'),
     'rows', v_rows,
     'totals', jsonb_build_object(
        'gifts', (select coalesce(sum((r->>'amount')::numeric),0) from jsonb_array_elements(v_rows) r where r->>'kind' = 'gift'),
@@ -254,7 +271,9 @@ begin
                    'fees', (select coalesce(sum(gl.admin_fee),0) from gift_lines gl join gifts g on g.id = gl.gift_id
                               where gl.fund_id = v_fund and g.status = 'posted' and date_trunc('month', g.gift_date) = mo),
                    'expenses', (select coalesce(sum(dl.amount),0) from disbursement_lines dl join disbursements d on d.id = dl.disbursement_id
-                              where dl.fund_id = v_fund and d.status = 'posted' and date_trunc('month', d.disb_date) = mo))
+                              where dl.fund_id = v_fund and d.status = 'posted' and date_trunc('month', d.disb_date) = mo)
+                             + (select coalesce(sum(bl.amount),0) from bill_lines bl join bills b on b.id = bl.bill_id
+                              where bl.fund_id = v_fund and b.status <> 'void' and date_trunc('month', b.bill_date) = mo))
                    order by mo), '[]')
                   from generate_series(date_trunc('month', v_to) - interval '11 months', date_trunc('month', v_to), interval '1 month') mo),
     'donors', (select coalesce(jsonb_agg(jsonb_build_object('donor_id', d.id, 'name', coalesce(d.display_name, 'Anonymous'),
@@ -332,6 +351,7 @@ begin
     default_admin_fee_rate = coalesce(nullif(p->>'default_admin_fee_rate','')::numeric, default_admin_fee_rate),
     default_admin_fee_cap = coalesce(nullif(p->>'default_admin_fee_cap','')::numeric, default_admin_fee_cap),
     form1099_threshold = coalesce(nullif(p->>'form1099_threshold','')::numeric, form1099_threshold),
+    mileage_rate = coalesce(nullif(p->>'mileage_rate','')::numeric, mileage_rate),
     receipt_signer = nullif(trim(p->>'receipt_signer'),''), receipt_note = nullif(trim(p->>'receipt_note'),''),
     updated_at = now()
   where id = 1;
@@ -362,7 +382,7 @@ language plpgsql stable as $$
 declare t text; v jsonb; r jsonb := '{}';
 begin
   foreach t in array array['accounts','funds','missionaries','payees','recurring_payments','recurring_payment_lines','donors','journal_entries','journal_lines','deposits','gifts','gift_lines',
-                           'disbursements','disbursement_lines','recurring_runs','transfers','reconciliations','reconciliation_items',
+                           'disbursements','disbursement_lines','recurring_runs','bill_payments','bills','bill_lines','transfers','reconciliations','reconciliation_items',
                            'bank_transactions','audit_log','settings'] loop
     execute format('select coalesce(jsonb_agg(to_jsonb(x)), ''[]'') from %I x', t) into v;
     r := r || jsonb_build_object(t, v);

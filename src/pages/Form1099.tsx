@@ -101,9 +101,14 @@ export default function Form1099() {
       <div className="report-head">
         <div className="org">{r.payer.name}</div>
         <h1>Forms 1099 for {r.year}</h1>
+        <div className="muted small">Contractors and other non-employees only.</div>
         <div className="muted">Recipient copies and IRS filing due {DUE(r.year)} · 1099-NEC threshold for {r.year}: {money(r.threshold)}</div>
       </div>
 
+      {Number(r.employees_excluded) > 0 && (
+        <div className="notice-bar"><span>{r.employees_excluded} employee{Number(r.employees_excluded) === 1 ? '' : 's'} (missionaries) left off: employees get a W-2, not a 1099.</span>
+          <a className="btn small" href="#/reports/w2">W-2 worksheet →</a></div>
+      )}
       {!r.payer.ein || r.payer.ein === '00-0000000' ? <ErrorBox error="BEM's EIN is missing. Add it under Settings → Organization before printing 1099s." /> : null}
       {problems.length > 0 && (
         <div className="warn-box">
